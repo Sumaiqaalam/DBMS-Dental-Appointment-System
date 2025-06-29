@@ -1,38 +1,32 @@
-# Use an official PHP image with FPM
 FROM php:8.2-fpm
 
 # Set working directory
 WORKDIR /var/www
 
-# Install dependencies
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
-    git \
-    curl \
-    zip \
-    unzip \
-    libzip-dev \
-    libpng-dev \
-    libjpeg-dev \
-    libfreetype6-dev \
-    libonig-dev \
-    libxml2-dev \
-    && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip
+    git curl zip unzip nginx \
+    libonig-dev libxml2-dev libzip-dev \
+    libpng-dev libjpeg-dev libfreetype6-dev \
+    && docker-php-ext-install pdo_mysql mbstring zip bcmath
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Copy application files
+# Copy app files
 COPY . /var/www
 
-# Install Laravel dependencies
-RUN composer install --no-interaction --prefer-dist --optimize-autoloader
-
-# Fix file permissions
+# Set permissions
 RUN chown -R www-data:www-data /var/www
 
-# Expose port 8080 (used by Railway)
+# Laravel dependencies
+RUN composer install --no-interaction --prefer-dist --optimize-autoloader
+
+# NGINX config
+COPY ./nginx.conf /etc/nginx/nginx.conf
+
+# Expose default port Railway expects
 EXPOSE 8080
 
-# Start Laravel server
-CMD php artisan config:cache && php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=8080
-
+# Start both services
+CMD service nginx start && php-fpm
